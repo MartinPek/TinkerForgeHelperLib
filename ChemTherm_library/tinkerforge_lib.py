@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from datetime import datetime
+import tinkerforge as tf
+
 from tinkerforge.bricklet_thermocouple_v2 import BrickletThermocoupleV2
 from tinkerforge.bricklet_industrial_digital_out_4_v2 import BrickletIndustrialDigitalOut4V2
 from tinkerforge.bricklet_industrial_analog_out_v2 import BrickletIndustrialAnalogOutV2
@@ -9,16 +11,56 @@ from tinkerforge.bricklet_analog_out_v3 import BrickletAnalogOutV3
 from tinkerforge.bricklet_industrial_dual_analog_in_v2 import BrickletIndustrialDualAnalogInV2
 from tinkerforge.bricklet_industrial_dual_0_20ma_v2 import BrickletIndustrialDual020mAV2
 
+from time import sleep
+
 # unused imports just keeping them around for now
 
 # from tinkerforge.bricklet_industrial_dual_relay import BrickletIndustrialDualRelay
 # import tkinter as tk
 # from PIL import Image,ImageTk
 # import time
-# from tinkerforge.ip_connection import IPConnection
+from tinkerforge.ip_connection import IPConnection
 
 
+class TFH:
+    def __init__(self, ip, port):
+        self.conn = IPConnection()
+        self.conn.connect(ip, port)
+        self.conn.register_callback(IPConnection.CALLBACK_ENUMERATE, self.cb_enumerate)
+        self.verify_config_devices()
+        self.device_dict = {}
+
+    def verify_config_devices(self):
+        print("verify devices")
+        """
+        collects the UIDs of the connected device and checks against the listing of UIDs given from the config
+        If not every required device is given an Error is given
+        """
+        self.conn.enumerate()
+        sleep(0.2)
+        self.conn.disconnect()
+    def cb_enumerate(self, uid, connected_uid, position, hardware_version, firmware_version,
+                     device_identifier, enumeration_type):
+        print("UID:               " + uid)
+        # print("Enumeration Type:  " + str(enumeration_type))
+
+        if enumeration_type == IPConnection.ENUMERATION_TYPE_DISCONNECTED:
+            print("")
+            return
+
+        print("Connected UID:     " + connected_uid)
+        # print("Position:          " + position)
+        print("Hardware Version:  " + str(hardware_version))
+        print("Firmware Version:  " + str(firmware_version))
+        print("Device Identifier: " + str(device_identifier))
+        print("")
+        # self.device_dict[device_identifier]
+
+
+
+# ‼️ there is no passing of arguments here
 def setup_devices(config, ipcon):
+
     ABB_list = {}
     do_list = [BrickletIndustrialDigitalOut4V2(UID, ipcon) for UID in config['CONTROL']['DigitalOut']]
     dual_AI_list = [TF_IndustrialDualAnalogIn(UID, ipcon) for UID in config['CONTROL']['DualAnalogIn']]
@@ -27,14 +69,28 @@ def setup_devices(config, ipcon):
     # unused
     # pressure_list = {}
     # module_list = {'DO': do_list, 'Dual-AI': dual_AI_list, 'Dual-AImA': dual_AI_mA_list}
+    device_list = {}
 
-    tc_list = [tc(ipcon, UID, typ='N') for UID in config['CONTROL']['Tc-R']] + \
-              [tc(ipcon, UID, typ='N') for UID in config['CONTROL']['TcExtra']]
-   
+    tc_list = []
+
+    for device_name in ['Tc-R', 'TcExtra']:
+        for UID in config['CONTROL'][device_name]:
+            try:
+                tc = Tc(ipcon, UID, typ='N')
+                tc_list.append(tc)
+            except tf.ip_connection.Error as err:
+                print(f"TC timed out: {err}")
+                pass
+    device_list['T'] = tc_list
+
+    # ❗ only if get all the defined TCs here can we iterate the tc_list
+    """
     hp_list = [regler(do_list[i_DO], config['CONTROL']['Tc-DO_channel'][i_Tc], tc_list[i_Tc])
                for i_DO, DO_UID in enumerate(config['CONTROL']['DigitalOut'])
                for i_Tc, tc_UID in enumerate(config['CONTROL']['Tc-R']) if config['CONTROL']['Tc-DO_index'][i_Tc] == i_DO]
     [hp.start(-300) for hp in hp_list]
+    device_list['HP'] = hp_list
+    """
 
     mfc_list = [MFC(ipcon, config['CONTROL']['AnalogOut'][config['MFC']['AnalogOut_index'][i]], dual_AI_list[config['MFC']['DualAnalogIn_index'][i]], config['MFC']['DualAnalogIn_channel'][i]) for i in range(config['MFC']['amount'])]
     [mfc.config(config['MFC']['gradient'][index], config['MFC']['y-axis'][index],  config['MFC']['unit'][index]) for index, mfc in enumerate(mfc_list)]
@@ -42,7 +98,7 @@ def setup_devices(config, ipcon):
     pressure_list = [AI_mA(dual_AI_mA_list[config['Pressure']['DualAnalogInmA_index'][i]], config['Pressure']['DualAnalogInmA_channel'][i]) for i in range(config['Pressure']['amount'])]
     [psc.config(config['Pressure']['gradient'][index], config['Pressure']['y-axis'][index],  config['Pressure']['unit'][index]) for index, psc in enumerate(pressure_list)]
     
-    device_list = {'T': tc_list, 'HP': hp_list, 'MFC': mfc_list, 'P':pressure_list, 'ABB': ABB_list}
+    device_list = {'MFC': mfc_list, 'P': pressure_list, 'ABB': ABB_list}
     return device_list
 
 
@@ -106,10 +162,10 @@ class regler:
             self.ido.set_pwm_configuration(self.channel, self.frequency, duty)
 
 
-class tc:
-    t = -300
+class Tc:
 
     def __init__(self, ipcon, ID, typ='K') -> None:
+        self.t = -300
         self.UID = ID
         self.obj = BrickletThermocoupleV2(ID, ipcon)
         
@@ -117,14 +173,14 @@ class tc:
 
         thermocouple_type = type_dict[typ]
         self.obj.set_configuration(16, thermocouple_type, 0)
-
+        # 🔳 integrate to init unless there is a need for multiple excepts
         self.start()
     
     def start(self):
         self.obj.register_callback(self.obj.CALLBACK_TEMPERATURE, self.cb_read_t)
         self.obj.set_temperature_callback_configuration(200, False, "x", 0, 0)
 
-    def cb_read_t(self,temperature):
+    def cb_read_t(self, temperature):
         # print("Temperature: " + str(temperature/100.0) + " °C")
         # print(self.UID)
 
@@ -133,8 +189,7 @@ class tc:
         self.t = temperature/100 
 
 
-class pressure:
-
+class Pressure:
     def __init__(self,obj_in,channel) -> None:
         self.obj = obj_in
         self.channel = channel
@@ -154,10 +209,10 @@ class pressure:
 
 
 class AI_mA:
-    def __init__(self,obj_in,channel) -> None:
+    def __init__(self, obj_in, channel) -> None:
         self.obj = obj_in
         self.channel = channel
-        self.config(0,0,'None')
+        self.config(0, 0, 'None')
 
     def config(self, m, y, unit):
         self.m = m  # Steigung
@@ -172,6 +227,7 @@ class AI_mA:
 
 
 class TF_IndustrialDualAnalogIn:
+    # ❓❓❓ not sure what happens here, trace why we pass an object to getcurrent otherwise do something sensible
     Voltage = [0, 0]
     # def cb_voltage(self,voltages):
     # self.Voltage[0] = voltages[0]/1000.0
@@ -191,10 +247,11 @@ class TF_IndustrialDualAnalogIn:
 
 
 class TF_IndustrialDualAnalogIn_mA:
-    current = [0,0]
-    
+    # ❓❓❓ not sure what happens here, trace why we pass an object to getcurrent otherwise do something sensible
+    current = [0, 0]
+
     def __init__(self, ID_in, ipcon) -> None:
-        self.obj = BrickletIndustrialDual020mAV2(ID_in, ipcon)   
+        self.obj = BrickletIndustrialDual020mAV2(ID_in, ipcon)
     
     def get_current(self, TF_obj):
         self.current[0] = TF_obj.obj.get_current(0)
@@ -202,8 +259,6 @@ class TF_IndustrialDualAnalogIn_mA:
 
 
 class MFC:
-    UID = ''
-
     def __init__(self, ipcon, ID_out, obj_in, channel) -> None:
         self.UID = ID_out
         self.Aout = BrickletIndustrialAnalogOutV2(ID_out, ipcon)
@@ -238,15 +293,6 @@ class MFC:
 
 
 class MFC_AIO_30:
-    UID = ''
-    
-    # Callback function for voltage callback
-    def cb_voltage(self, voltage):
-        self.voltage= voltage/1000.0
-    
-    def get(self):
-        self.Voltage = self.voltage
-
     def __init__(self,ipcon,ID_out,ID_in) -> None:
         self.UID = ID_out
         self.Aout = BrickletAnalogOutV3(ID_out, ipcon)
@@ -254,6 +300,12 @@ class MFC_AIO_30:
         self.Ain = BrickletAnalogInV3(ID_in, ipcon) # Create device object
         self.Ain.register_callback(self.Ain.CALLBACK_VOLTAGE, self.cb_voltage)
         self.Ain.set_voltage_callback_configuration(1000, False, "x", 0, 0)
+
+    def cb_voltage(self, voltage):
+        self.voltage= voltage/1000.0
+    
+    def get(self):
+        self.Voltage = self.voltage
 
     def set(self, value):
         self.Aout.set_output_voltage(value)
