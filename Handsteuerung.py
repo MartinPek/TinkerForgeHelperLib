@@ -4,8 +4,11 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from ChemTherm_library.tinkerforge_lib import *
 from ChemTherm_library.tkinter_lib import *
+from tinkerforge.ip_connection import IPConnection
 
 # from .ChemTherm_library.tinkerforge_lib import *
+
+
 
 
 def main():
@@ -15,8 +18,14 @@ def main():
     with open('./json_files/' + json_name + '.json', 'r') as config_file:
         config = json.load(config_file)
 
-    ipcon = IPConnection()
-    ipcon.connect("localhost", 4223)
+    TFH("localhost", 4223)
+
+    exit()
+
+    # ipcon = IPConnection()
+    # ipcon.connect("localhost", 4223)
+
+
     device_list = setup_devices(config, ipcon)
     window, frames = setup_gui(config, config)
 

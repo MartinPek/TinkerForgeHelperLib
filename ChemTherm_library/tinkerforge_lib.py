@@ -27,8 +27,8 @@ class TFH:
         self.conn = IPConnection()
         self.conn.connect(ip, port)
         self.conn.register_callback(IPConnection.CALLBACK_ENUMERATE, self.cb_enumerate)
+        self.devices_present = {}
         self.verify_config_devices()
-        self.device_dict = {}
 
     def verify_config_devices(self):
         print("verify devices")
@@ -39,7 +39,7 @@ class TFH:
         self.conn.enumerate()
         sleep(0.2)
         self.conn.disconnect()
-    def cb_enumerate(self, uid, connected_uid, position, hardware_version, firmware_version,
+    def cb_enumerate(self, uid, connected_uid, _, hardware_version, firmware_version,
                      device_identifier, enumeration_type):
         print("UID:               " + uid)
         # print("Enumeration Type:  " + str(enumeration_type))
@@ -47,15 +47,15 @@ class TFH:
         if enumeration_type == IPConnection.ENUMERATION_TYPE_DISCONNECTED:
             print("")
             return
+        self.devices_present[uid] = {"device_identifier": device_identifier, "parent_uid": connected_uid}
 
         print("Connected UID:     " + connected_uid)
-        # print("Position:          " + position)
+        # print("Position:          " + _)
         print("Hardware Version:  " + str(hardware_version))
         print("Firmware Version:  " + str(firmware_version))
         print("Device Identifier: " + str(device_identifier))
         print("")
         # self.device_dict[device_identifier]
-
 
 
 # ‼️ there is no passing of arguments here
