@@ -38,7 +38,12 @@ class TFH:
         """
         self.conn.enumerate()
         sleep(0.2)
-        self.conn.disconnect()
+        # self.conn.disconnect()
+
+        # found no obvious way to check the main connection lets throw an error when no devices are found
+        if not len(self.devices_present):
+            raise ConnectionError("No Tinkerforge module found, check connection to master brick")
+
     def cb_enumerate(self, uid, connected_uid, _, hardware_version, firmware_version,
                      device_identifier, enumeration_type):
         print("UID:               " + uid)
