@@ -23,15 +23,21 @@ from tinkerforge.ip_connection import IPConnection
 
 
 class TFH:
-    def __init__(self, ip, port):
+
+    #	Industrial Analog Out Bricklet 2.0     2116  25si
+    #   Industrial Dual Analog In Bricklet 2.0 2121  23Uf
+
+    def __init__(self, ip, port, debug=False):
         self.conn = IPConnection()
         self.conn.connect(ip, port)
         self.conn.register_callback(IPConnection.CALLBACK_ENUMERATE, self.cb_enumerate)
         self.devices_present = {}
         self.verify_config_devices()
+        self.debugMode = debug
 
     def verify_config_devices(self):
         print("verify devices")
+        # @todo define required and optional device from parsing
         """
         collects the UIDs of the connected device and checks against the listing of UIDs given from the config
         If not every required device is given an Error is given
@@ -43,6 +49,13 @@ class TFH:
         # found no obvious way to check the main connection lets throw an error when no devices are found
         if not len(self.devices_present):
             raise ConnectionError("No Tinkerforge module found, check connection to master brick")
+
+        devices_required = ["25si", "23Uf"]
+        # maybe make a secondary list for optional, and then throw a warning
+        # do we need a device identifier check? what happen to TF elements if we go wrong?
+        for uid in devices_required:
+            if uid not in self.devices_present:
+                raise ModuleNotFoundError("Missing Tinkerforge Element")
 
     def cb_enumerate(self, uid, connected_uid, _, hardware_version, firmware_version,
                      device_identifier, enumeration_type):
