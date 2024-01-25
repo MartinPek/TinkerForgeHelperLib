@@ -27,13 +27,15 @@ class TFH:
     #	Industrial Analog Out Bricklet 2.0     2116  25si
     #   Industrial Dual Analog In Bricklet 2.0 2121  23Uf
 
-    def __init__(self, ip, port, debug=False):
+    def __init__(self, ip, port, config, debug=False):
         self.conn = IPConnection()
         self.conn.connect(ip, port)
         self.conn.register_callback(IPConnection.CALLBACK_ENUMERATE, self.cb_enumerate)
         self.devices_present = {}
         self.verify_config_devices()
         self.debugMode = debug
+        self.config = config
+        self.device_list = {}
 
     def verify_config_devices(self):
         print("verify devices")
@@ -74,6 +76,10 @@ class TFH:
         print("Device Identifier: " + str(device_identifier))
         print("")
         # self.device_dict[device_identifier]
+
+    def setup_devices(self):
+        for key, value in self.config:
+            print()
 
 
 # ‼️ there is no passing of arguments here
