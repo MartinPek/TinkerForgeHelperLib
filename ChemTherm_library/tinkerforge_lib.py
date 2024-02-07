@@ -21,21 +21,26 @@ from time import sleep
 # import time
 from tinkerforge.ip_connection import IPConnection
 
+device_identifier_types = {
+    13: "Master Brick",
+    2121: "Industrial Dual Analog In Bricklet 2.0",
+    2116: "Industrial Analog Out Bricklet 2.0",
+}
+
 
 class TFH:
 
     #	Industrial Analog Out Bricklet 2.0     2116  25si
     #   Industrial Dual Analog In Bricklet 2.0 2121  23Uf
 
-    def __init__(self, ip, port, config, debug=False):
+    def __init__(self, ip, port, config: dict, debug=False):
         self.conn = IPConnection()
         self.conn.connect(ip, port)
         self.conn.register_callback(IPConnection.CALLBACK_ENUMERATE, self.cb_enumerate)
         self.devices_present = {}
-        self.verify_config_devices()
         self.debugMode = debug
         self.config = config
-        self.device_list = {}
+        self.verify_config_devices()
 
     def verify_config_devices(self):
         print("verify devices")
@@ -52,30 +57,38 @@ class TFH:
         if not len(self.devices_present):
             raise ConnectionError("No Tinkerforge module found, check connection to master brick")
 
+        # devices_required = ["25si", "23Uf"]
         devices_required = ["25si", "23Uf"]
-        # maybe make a secondary list for optional, and then throw a warning
-        # do we need a device identifier check? what happen to TF elements if we go wrong?
+        if len(self.config):
+            print("this is work in progress, first implemting automatic setup for basic MFCs")
+            exit()
+            # for device in self.config.get()
         for uid in devices_required:
             if uid not in self.devices_present:
                 raise ModuleNotFoundError("Missing Tinkerforge Element")
 
+        # maybe make a secondary list for optional, and then throw a warning
+        # do we need a device identifier check? what happen to TF elements if we go wrong?
+
     def cb_enumerate(self, uid, connected_uid, _, hardware_version, firmware_version,
                      device_identifier, enumeration_type):
-        print("UID:               " + uid)
+
         # print("Enumeration Type:  " + str(enumeration_type))
 
         if enumeration_type == IPConnection.ENUMERATION_TYPE_DISCONNECTED:
-            print("")
+            print(f"Disconnect detected from device: {uid} - "
+                  f"{device_identifier_types.get(device_identifier, "unknown device type")}")
             return
         self.devices_present[uid] = {"device_identifier": device_identifier, "parent_uid": connected_uid}
 
+        print("UID:               " + uid)
         print("Connected UID:     " + connected_uid)
         # print("Position:          " + _)
         print("Hardware Version:  " + str(hardware_version))
         print("Firmware Version:  " + str(firmware_version))
         print("Device Identifier: " + str(device_identifier))
+        print(device_identifier_types.get(device_identifier, "unknown"))
         print("")
-        # self.device_dict[device_identifier]
 
     def setup_devices(self):
         for key, value in self.config:
