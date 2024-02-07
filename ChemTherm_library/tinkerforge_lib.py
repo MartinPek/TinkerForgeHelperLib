@@ -79,16 +79,20 @@ class TFH:
             print(f"Disconnect detected from device: {uid} - "
                   f"{device_identifier_types.get(device_identifier, "unknown device type")}")
             return
-        self.devices_present[uid] = {"device_identifier": device_identifier, "parent_uid": connected_uid}
 
-        print("UID:               " + uid)
-        print("Connected UID:     " + connected_uid)
-        # print("Position:          " + _)
-        print("Hardware Version:  " + str(hardware_version))
-        print("Firmware Version:  " + str(firmware_version))
-        print("Device Identifier: " + str(device_identifier))
-        print(device_identifier_types.get(device_identifier, "unknown"))
-        print("")
+        if uid not in self.devices_present.keys():
+            self.devices_present[uid] = {"device_identifier": device_identifier, "parent_uid": connected_uid}
+            print("UID:               " + uid)
+            print("Connected UID:     " + connected_uid)
+            # print("Position:          " + _)
+            print("Hardware Version:  " + str(hardware_version))
+            print("Firmware Version:  " + str(firmware_version))
+            print("Device Identifier: " + str(device_identifier))
+            print(device_identifier_types.get(device_identifier, "unknown"))
+            print("")
+        else:
+            print(f"reconnect detected from device: {uid} - "
+                  f"{device_identifier_types.get(device_identifier, "unknown device type")}")
 
     def setup_devices(self):
         for key, value in self.config:
