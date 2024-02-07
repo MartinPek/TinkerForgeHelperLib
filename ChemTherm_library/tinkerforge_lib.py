@@ -101,7 +101,6 @@ class TFH:
 
 # ‼️ there is no passing of arguments here
 def setup_devices(config, ipcon):
-
     ABB_list = {}
     do_list = [BrickletIndustrialDigitalOut4V2(UID, ipcon) for UID in config['CONTROL']['DigitalOut']]
     dual_AI_list = [TF_IndustrialDualAnalogIn(UID, ipcon) for UID in config['CONTROL']['DualAnalogIn']]
@@ -133,12 +132,18 @@ def setup_devices(config, ipcon):
     device_list['HP'] = hp_list
     """
 
-    mfc_list = [MFC(ipcon, config['CONTROL']['AnalogOut'][config['MFC']['AnalogOut_index'][i]], dual_AI_list[config['MFC']['DualAnalogIn_index'][i]], config['MFC']['DualAnalogIn_channel'][i]) for i in range(config['MFC']['amount'])]
-    [mfc.config(config['MFC']['gradient'][index], config['MFC']['y-axis'][index],  config['MFC']['unit'][index]) for index, mfc in enumerate(mfc_list)]
-    
-    pressure_list = [AI_mA(dual_AI_mA_list[config['Pressure']['DualAnalogInmA_index'][i]], config['Pressure']['DualAnalogInmA_channel'][i]) for i in range(config['Pressure']['amount'])]
-    [psc.config(config['Pressure']['gradient'][index], config['Pressure']['y-axis'][index],  config['Pressure']['unit'][index]) for index, psc in enumerate(pressure_list)]
-    
+    mfc_list = [MFC(ipcon, config['CONTROL']['AnalogOut'][config['MFC']['AnalogOut_index'][i]],
+                    dual_AI_list[config['MFC']['DualAnalogIn_index'][i]], config['MFC']['DualAnalogIn_channel'][i]) for
+                i in range(config['MFC']['amount'])]
+    [mfc.config(config['MFC']['gradient'][index], config['MFC']['y-axis'][index], config['MFC']['unit'][index]) for
+     index, mfc in enumerate(mfc_list)]
+
+    pressure_list = [AI_mA(dual_AI_mA_list[config['Pressure']['DualAnalogInmA_index'][i]],
+                           config['Pressure']['DualAnalogInmA_channel'][i]) for i in
+                     range(config['Pressure']['amount'])]
+    [psc.config(config['Pressure']['gradient'][index], config['Pressure']['y-axis'][index],
+                config['Pressure']['unit'][index]) for index, psc in enumerate(pressure_list)]
+
     device_list = {'MFC': mfc_list, 'P': pressure_list, 'ABB': ABB_list}
     return device_list
 
@@ -151,7 +156,7 @@ class regler:
     time_last_call = datetime.now()
     pwroutput = 0
 
-    def __init__(self, ido_handle, channel, tc_handle, frequency = 10) -> None:
+    def __init__(self, ido_handle, channel, tc_handle, frequency=10) -> None:
         self.running = False
         self.tc = tc_handle
         self.channel = channel
@@ -171,20 +176,20 @@ class regler:
     def stop(self):
         self.running = False
         self.regeln()
-    
+
     def set_t_soll(self, t_soll):
         self.t_soll = t_soll
 
     def regeln(self):
         if self.running:
             dT = self.t_soll - self.tc.t
-            p = self.kp*dT
+            p = self.kp * dT
             now = datetime.now()
             dtime = (now - self.time_last_call).total_seconds()
             self.time_last_call = now
-            self.i = self.i + dT*self.ki*dtime
-            
-            pi = p+self.i
+            self.i = self.i + dT * self.ki * dtime
+
+            pi = p + self.i
             if pi > 1:
                 pi = 1
                 self.i = pi - p
@@ -192,8 +197,8 @@ class regler:
                 pi = 0
             if self.i < 0:
                 self.i = 0
-            duty = 10000*pi
-            self.pwroutput = duty/10000
+            duty = 10000 * pi
+            self.pwroutput = duty / 10000
             self.ido.set_pwm_configuration(self.channel, self.frequency, duty)
             # print(self.channel)
             # print("duty = " + str(duty))
@@ -209,14 +214,14 @@ class Tc:
         self.t = -300
         self.UID = ID
         self.obj = BrickletThermocoupleV2(ID, ipcon)
-        
+
         type_dict = {'B': 0, 'E': 1, 'J': 2, 'K': 3, 'N': 4, 'R': 5, 'S': 6, 'T': 7}
 
         thermocouple_type = type_dict[typ]
         self.obj.set_configuration(16, thermocouple_type, 0)
         # 🔳 integrate to init unless there is a need for multiple excepts
         self.start()
-    
+
     def start(self):
         self.obj.register_callback(self.obj.CALLBACK_TEMPERATURE, self.cb_read_t)
         self.obj.set_temperature_callback_configuration(200, False, "x", 0, 0)
@@ -227,11 +232,11 @@ class Tc:
 
         if temperature < 0:
             temperature = 200000
-        self.t = temperature/100 
+        self.t = temperature / 100
 
 
 class Pressure:
-    def __init__(self,obj_in,channel) -> None:
+    def __init__(self, obj_in, channel) -> None:
         self.obj = obj_in
         self.channel = channel
         self.config(0, 0, 'None')
@@ -246,7 +251,7 @@ class Pressure:
         self.obj.get_voltages(self.obj)
         self.Voltage = self.obj.Voltage[self.channel]
         if self.m > 0:
-            self.value = (self.Voltage -self.y) * self.m
+            self.value = (self.Voltage - self.y) * self.m
 
 
 class AI_mA:
@@ -260,29 +265,30 @@ class AI_mA:
         self.y = y  # Achsenabschnitt
         self.unit = unit
 
-    def get(self):         
+    def get(self):
         self.obj.get_current(self.obj)
-        self.current = self.obj.current[self.channel] 
+        self.current = self.obj.current[self.channel]
         if self.m > 0:
-            self.value = (self.current -self.y) * self.m 
+            self.value = (self.current - self.y) * self.m
 
 
 class TF_IndustrialDualAnalogIn:
     # ❓❓❓ not sure what happens here, trace why we pass an object to getcurrent otherwise do something sensible
     Voltage = [0, 0]
+
     # def cb_voltage(self,voltages):
     # self.Voltage[0] = voltages[0]/1000.0
     # self.Voltage[1] = voltages[1]/1000.0
 
     def __init__(self, ID_in, ipcon) -> None:
-        self.obj = BrickletIndustrialDualAnalogInV2(ID_in, ipcon)   
+        self.obj = BrickletIndustrialDualAnalogInV2(ID_in, ipcon)
         self.ID = ID_in
         # self.start()
-    
+
     # def start(self):
-        # self.obj.register_callback(self.obj.CALLBACK_ALL_VOLTAGES, self.cb_voltage)
-        # self.obj.set_all_voltages_callback_configuration(500, False)
-    
+    # self.obj.register_callback(self.obj.CALLBACK_ALL_VOLTAGES, self.cb_voltage)
+    # self.obj.set_all_voltages_callback_configuration(500, False)
+
     def get_voltages(self, TF_obj):
         self.Voltage = TF_obj.obj.get_all_voltages()
 
@@ -293,7 +299,7 @@ class TF_IndustrialDualAnalogIn_mA:
 
     def __init__(self, ID_in, ipcon) -> None:
         self.obj = BrickletIndustrialDual020mAV2(ID_in, ipcon)
-    
+
     def get_current(self, TF_obj):
         self.current[0] = TF_obj.obj.get_current(0)
         self.current[1] = TF_obj.obj.get_current(1)
@@ -325,32 +331,32 @@ class MFC:
 
     def set(self, value):
         if self.m > 0:
-            value = value/self.m + self.y
+            value = value / self.m + self.y
         self.Aout.set_voltage(value)
-    
+
     def stop(self):
         self.Aout.set_voltage(0)
         self.Aout.set_enabled(False)
 
 
 class MFC_AIO_30:
-    def __init__(self,ipcon,ID_out,ID_in) -> None:
+    def __init__(self, ipcon, ID_out, ID_in) -> None:
         self.UID = ID_out
         self.Aout = BrickletAnalogOutV3(ID_out, ipcon)
         self.Aout.set_output_voltage(0)
-        self.Ain = BrickletAnalogInV3(ID_in, ipcon) # Create device object
+        self.Ain = BrickletAnalogInV3(ID_in, ipcon)  # Create device object
         self.Ain.register_callback(self.Ain.CALLBACK_VOLTAGE, self.cb_voltage)
         self.Ain.set_voltage_callback_configuration(1000, False, "x", 0, 0)
 
     def cb_voltage(self, voltage):
-        self.voltage= voltage/1000.0
-    
+        self.voltage = voltage / 1000.0
+
     def get(self):
         self.Voltage = self.voltage
 
     def set(self, value):
         self.Aout.set_output_voltage(value)
-    
+
     def stop(self):
         self.Aout.set_output_voltage(0)
         self.Aout.set_enabled(False)
