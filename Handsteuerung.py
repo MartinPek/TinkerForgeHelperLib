@@ -1,9 +1,10 @@
-import time
+from time import sleep
 import json
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from ChemTherm_library.tinkerforge_lib import *
 from ChemTherm_library.tkinter_lib import *
+from tinkerforge.ip_connection import IPConnection
 
 # from .ChemTherm_library.tinkerforge_lib import *
 
@@ -12,11 +13,21 @@ def main():
     # t0 = time.time()
     json_name = "MFC_Settings"
 
-    with open('./json_files/' + json_name + '.json', 'r') as config_file:
-        config = json.load(config_file)
+    try:
+        with open('./json_files/' + json_name + '.json', 'r') as config_file:
+            config = json.load(config_file)
+    except FileNotFoundError:
+        print("attempting automatic config")
+        config = {}
 
-    ipcon = IPConnection()
-    ipcon.connect("localhost", 4223)
+    TFH("localhost", 4223, {})
+    sleep(250)
+
+    exit()
+
+    # ipcon = IPConnection()
+    # ipcon.connect("localhost", 4223)
+
     device_list = setup_devices(config, ipcon)
     window, frames = setup_gui(config, config)
 
@@ -32,7 +43,7 @@ def main():
     [hp.stop() for hp in device_list['HP']]
     [mfc.stop() for mfc in device_list['MFC']]
 
-    time.sleep(2)
+    sleep(2)
     ipcon.disconnect()
     print("bye bye") 
 
