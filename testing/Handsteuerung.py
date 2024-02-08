@@ -1,10 +1,7 @@
-from time import sleep
 import json
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from ChemTherm_library.tinkerforge_lib import *
-from ChemTherm_library.tkinter_lib import *
-from tinkerforge.ip_connection import IPConnection
+from tinkerforge_lib import *
+from tkinter_lib import *
+
 
 # from .ChemTherm_library.tinkerforge_lib import *
 
