@@ -78,7 +78,7 @@ class TFH:
 
         if enumeration_type == IPConnection.ENUMERATION_TYPE_DISCONNECTED:
             print(f"Disconnect detected from device: {uid} - "
-                  f"{device_identifier_types.get(device_identifier, "unknown device type")}")
+                  f"{device_identifier_types.get(device_identifier, 'unknown device type')}")
             return
 
         if uid not in self.devices_present.keys():
@@ -93,7 +93,7 @@ class TFH:
             print("")
         else:
             print(f"reconnect detected from device: {uid} - "
-                  f"{device_identifier_types.get(device_identifier, "unknown device type")}")
+                  f"{device_identifier_types.get(device_identifier, 'unknown device type')}")
 
     def setup_devices(self):
         for key, value in self.config:
