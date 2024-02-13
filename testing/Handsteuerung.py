@@ -1,6 +1,6 @@
 import json
-from src.TinkerForgeHelperLib.tinkerforge_lib import *
-from src.TinkerForgeHelperLib.tkinter_lib import *
+from TinkerForgeHelperLib.tinkerforge_lib import *
+from TinkerForgeHelperLib.tkinter_lib import *
 
 
 # from .ChemTherm_library.tinkerforge_lib import *
